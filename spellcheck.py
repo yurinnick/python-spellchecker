@@ -48,7 +48,7 @@ class Spellchecker:
         word_indexs = {}
         for bigram in proccesed_word:
             words_ids = self.bigram_id[bigram]
-            word_indexs = self.mp_l_distance(word, words_ids, 4)
+            word_indexs = self.mp_l_distance(word, words_ids, 8)
         top_entries = sorted(
             word_indexs.items(),
             key=operator.itemgetter(1))[:n]
