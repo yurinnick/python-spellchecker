@@ -58,8 +58,10 @@ class Spellchecker:
             word_indexes.items(),
             key=operator.itemgetter(1))[:n]
 
+        result = []
         for word_id in top_entries:
-            print self.dictionary[word_id[0]], word_id
+            result.append((self.dictionary[word_id[0]], word_id[1]))
+        return result
 
     @staticmethod
     def levenshtein_distance(word1, word2):
@@ -81,11 +83,12 @@ class Spellchecker:
 def main(argv=None):
     start = time.time()
     sp = Spellchecker()
-    sp.spellcheck(argv[1], n=10)
+    for suggestion in sp.spellcheck(argv[1], n=10):
+        print suggestion
     end = time.time()
     print end - start
 
 if __name__ == '__main__':
-    sys.argv.append('amimal')
+    sys.argv.append('spellchek')
     main(sys.argv)
 
