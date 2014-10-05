@@ -1,18 +1,11 @@
 import operator
 import json
-import math
 import time
 import sys
-from multiprocessing import Queue
-from multiprocessing import Process
 
 
 class Spellchecker:
-    def __init__(
-        self,
-        dictionary_path='en.txt',
-        bigram_path='bigrams.json'
-    ):
+    def __init__(self, dictionary_path='en.txt', bigram_path='bigrams.json'):
         with open(dictionary_path) as f:
             self.dictionary = f.read().splitlines()
         try:
@@ -20,7 +13,7 @@ class Spellchecker:
             with open(bigram_path) as f:
                 self.bigram_id = json.load(f)
         except IOError:
-            print '%s not found! Generating...'
+            print '%s not found! Generating...' % bigram_path
             self.bigram_id = self.generate_bigrams(self.dictionary)
             print 'Processed %d words' % len(self.dictionary)
         except Exception as e:
@@ -45,67 +38,54 @@ class Spellchecker:
     def spellcheck(self, word, n=5):
         print 'Checking %s word...' % word
         proccesed_word = self.bigram_word(word)
-        word_indexs = {}
+        word_indexes = {}
+        word_count = {}
         for bigram in proccesed_word:
-            words_ids = self.bigram_id[bigram]
-            word_indexs = self.mp_l_distance(word, words_ids, 8)
+            words_ids = set(self.bigram_id[bigram])
+            for word_id in words_ids:
+                if word_id in word_count:
+                    word_count[word_id] += 1
+                else:
+                    word_count[word_id] = 1
+        top_words_ids = set([data[0] for data in sorted(
+            word_count.items(),
+            key=operator.itemgetter(1), reverse=True)[:200]])
+        for word_id in top_words_ids:
+            word_indexes[word_id] = self.levenshtein_distance(
+                word,
+                self.dictionary[word_id])
         top_entries = sorted(
-            word_indexs.items(),
+            word_indexes.items(),
             key=operator.itemgetter(1))[:n]
 
         for word_id in top_entries:
             print self.dictionary[word_id[0]], word_id
 
-    def mp_l_distance(self, word, word_id_list, nprocs):
-        def worker(word, word_id_list, values_list):
-            word_indexs = {}
-            for word_id in word_id_list:
-                if not word_id in word_indexs.keys():
-                    word_indexs[word_id] = self.levenshtein_distance(
-                        word,
-                        self.dictionary[word_id])
-            values_list.put(word_indexs)
-
-        values_list = Queue()
-        chunksize = int(math.ceil(len(word_id_list) / float(nprocs)))
-        procs = []
-
-        for i in range(nprocs):
-            p = Process(
-                target=worker,
-                args=(
-                    word,
-                    word_id_list[chunksize * i:chunksize * (i + 1)],
-                    values_list))
-            procs.append(p)
-            p.start()
-
-        resultdict = {}
-        for i in range(nprocs):
-            resultdict.update(values_list.get())
-        for p in procs:
-            p.join()
-
-        return resultdict
-
-    def levenshtein_distance(self, word1, word2):
+    @staticmethod
+    def levenshtein_distance(word1, word2):
         if len(word1) < len(word2):
             word1, word2 = word2, word1
         distances = range(len(word1) + 1)
         for index1, char1 in enumerate(word1):
-            newDistances = [index1 + 1]
+            new_distances = [index1 + 1]
             for index2, char2 in enumerate(word2):
                 if char1 == char2:
-                    newDistances.append(distances[index2])
+                    new_distances.append(distances[index2])
                 else:
-                    newDistances.append(1 + min(distances[index2],
-                                                distances[index2 + 1],
-                                                newDistances[-1]))
-            distances = newDistances
+                    new_distances.append(1 + min(distances[index2],
+                                                 distances[index2 + 1],
+                                                 new_distances[-1]))
+            distances = new_distances
         return distances[-1]
 
-start = time.time()
-sp = Spellchecker()
-sp.spellcheck(sys.argv[1], n=10)
-end = time.time()
-print end - start
+def main(argv=None):
+    start = time.time()
+    sp = Spellchecker()
+    sp.spellcheck(argv[1], n=10)
+    end = time.time()
+    print end - start
+
+if __name__ == '__main__':
+    sys.argv.append('amimal')
+    main(sys.argv)
+
